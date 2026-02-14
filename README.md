@@ -27,31 +27,32 @@ GLOSA-BHARAT 2.0 follows a **4-Stage Enterprise Architecture** designed for high
 graph TD
     subgraph Perception_Layer ["1. Perception Layer (Data Ingestion)"]
         TC[Traffic Camera Feed] -- Stream --> IoT[AWS IoT Core]
-        style TC fill:#E1F5FE,stroke:#01579B
+        style TC fill:#E1F5FE,stroke:#01579B,color:#000
     end
 
     subgraph Intelligence_Layer ["2. Intelligence Layer (AI/ML)"]
         IoT -- Density Data --> SM[Amazon SageMaker]
         SM -- YOLOv8 Inference --> AD[Congestion Analysis]
-        style SM fill:#FFF3E0,stroke:#E65100
+        style AD fill:#FFF3E0,stroke:#E65100,color:#000
     end
 
     subgraph Orchestration_Layer ["3. Orchestration Layer (Backend)"]
         AD -- Data Points --> EC2[Amazon EC2: Node.js]
         EC2 -- GLOSA Logic --> GE[Advisory Engine]
         DB[(MongoDB Atlas)] <--> EC2
-        style EC2 fill:#F3E5F5,stroke:#4A148C
+        style GE fill:#F3E5F5,stroke:#4A148C,color:#000
+        style DB fill:#E0F2F1,stroke:#004D40,color:#000
     end
 
     subgraph Interaction_Layer ["4. Interaction Layer (User Interface)"]
         GE -- Speed Sync --> AG[API Gateway & WSS]
         AG -- Low Latency --> AM[AWS Amplify: React App]
         AM -- Dashboards --> User((Driver / Authority))
-        style AM fill:#E8F5E9,stroke:#1B5E20
+        style User fill:#E8F5E9,stroke:#1B5E20,color:#000
     end
 
-    %% Styling
-    classDef aws service fill:#FF9900,stroke:#232F3E,color:white,stroke-width:2px;
+    %% Styling for AWS Services (High Visibility)
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#fff,stroke-width:2px;
     class IoT,SM,EC2,AG,AM aws;
 ```
 
