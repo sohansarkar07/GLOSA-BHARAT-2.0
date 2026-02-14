@@ -15,9 +15,9 @@ GLOSA Bharat follows a cloud-native architecture optimized for **AWS**, designed
 - **Function:** Predicts the ideal speed based on congestion patterns and signal timing analysis.
 
 ### 2.2 Backend & Communication (Amazon EC2 + API Gateway)
-- **Runtime:** Node.js.
-- **Communication:** Uses **API Gateway & WebSockets** to push sub-second speed updates to drivers.
-- **Algorithm:** Dynamic speed calculation to minimize idle engine time and fuel consumption.
+- **Runtime:** Node.js with **@aws-sdk** integration.
+- **AWS IoT Implementation:** The backend includes a dedicated utility (`aws-service.js`) that publishes junction telemetry to **AWS IoT Core**.
+- **SageMaker Integration:** Implements the **InvokeEndpointCommand** to source real-time predictions from scalable Amazon SageMaker endpoints.
 
 ### 2.3 User Interface (AWS Amplify)
 - **Platform:** React-based mobile application.

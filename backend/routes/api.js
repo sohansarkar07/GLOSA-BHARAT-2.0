@@ -5,6 +5,8 @@ const Junction = require('../models/Junction');
 const User = require('../models/User');
 const { calculateAdvisory, getDistance } = require('../utils/glosa');
 
+const { publishToIoTCore, getSageMakerPrediction } = require('../utils/aws-service');
+
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
 // List all junctions
@@ -95,27 +97,43 @@ router.post('/advisory', async (req, res) => {
         const junction = await Junction.findOne({ id: junctionId });
         if (!junction) return res.status(404).json({ error: 'Junction not found' });
 
+        // [AWS Integration] Publish Telemetry to IoT Core
+        await publishToIoTCore(`glosa/telemetry/${junctionId}`, { lat, lng, junctionId, timestamp });
+
         // Calculate distance
         const distance = getDistance(lat, lng, junction.lat, junction.lng);
 
-        // Call AI Service for prediction
-        const aiResponse = await axios.post(`${AI_SERVICE_URL}/predict`, {
-            junction_id: junctionId,
-            timestamp: timestamp || Date.now() / 1000
-        });
+        let signalStatus, secondsToChange;
 
-        const { current_status, seconds_to_change } = aiResponse.data;
+        // [AWS Integration] Attempt SageMaker prediction, fallback to AI Service
+        const sageResult = await getSageMakerPrediction({ junctionId, lat, lng });
+
+        if (sageResult) {
+            signalStatus = sageResult.current_status;
+            secondsToChange = sageResult.seconds_to_change;
+            console.log("☁️ Prediction sourced from Amazon SageMaker");
+        } else {
+            // Local AI Service Fallback
+            const aiResponse = await axios.post(`${AI_SERVICE_URL}/predict`, {
+                junction_id: junctionId,
+                timestamp: timestamp || Date.now() / 1000
+            });
+            signalStatus = aiResponse.data.current_status;
+            secondsToChange = aiResponse.data.seconds_to_change;
+            console.log("🦾 Prediction sourced from Local AI Service");
+        }
 
         // Calculate GLOSA advisory
-        const advisory = calculateAdvisory(distance, seconds_to_change, current_status);
+        const advisory = calculateAdvisory(distance, secondsToChange, signalStatus);
 
         res.json({
             junction: junction.name,
             distance: Math.round(distance),
-            signalStatus: current_status,
-            secondsToChange: seconds_to_change,
+            signalStatus: signalStatus,
+            secondsToChange: secondsToChange,
             recommendedSpeed: advisory.speedKmh,
-            message: advisory.message
+            message: advisory.message,
+            provider: sageResult ? "AWS SageMaker" : "Local AI Engine"
         });
 
     } catch (error) {
