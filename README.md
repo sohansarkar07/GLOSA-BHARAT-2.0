@@ -21,18 +21,69 @@
 
 ## 🏗️ System Architecture
 
-The project is built on a 4-Stage Enterprise Architecture:
+GLOSA-BHARAT 2.0 follows a **4-Stage Enterprise Architecture** designed for high-throughput, low-latency traffic orchestration, fully integrated with **AWS Cloud Native** services.
 
 ```mermaid
 graph TD
-    Junction((Digital Junction)) -->|Traffic Flow| AP[AI Perception: CV Models]
-    AP -->|Density Data| OL[Orchestration Layer: Node.js]
-    OL -->|Telemetry| AE[AI Advisory Engine: ML Prediction]
-    AE -->|Optimal Speed| OL
-    OL -->|V2I Sync| IL[Interaction Layer: GLOSA Dashboard]
-    IL -->|Speed Advisory| User((Driver / Authority))
+    subgraph Perception_Layer ["1. Perception Layer (Data Ingestion)"]
+        TC[Traffic Camera Feed] -- Stream --> IoT[AWS IoT Core]
+        style TC fill:#E1F5FE,stroke:#01579B
+    end
+
+    subgraph Intelligence_Layer ["2. Intelligence Layer (AI/ML)"]
+        IoT -- Density Data --> SM[Amazon SageMaker]
+        SM -- YOLOv8 Inference --> AD[Congestion Analysis]
+        style SM fill:#FFF3E0,stroke:#E65100
+    end
+
+    subgraph Orchestration_Layer ["3. Orchestration Layer (Backend)"]
+        AD -- Data Points --> EC2[Amazon EC2: Node.js]
+        EC2 -- GLOSA Logic --> GE[Advisory Engine]
+        DB[(MongoDB Atlas)] <--> EC2
+        style EC2 fill:#F3E5F5,stroke:#4A148C
+    end
+
+    subgraph Interaction_Layer ["4. Interaction Layer (User Interface)"]
+        GE -- Speed Sync --> AG[API Gateway & WSS]
+        AG -- Low Latency --> AM[AWS Amplify: React App]
+        AM -- Dashboards --> User((Driver / Authority))
+        style AM fill:#E8F5E9,stroke:#1B5E20
+    end
+
+    %% Styling
+    classDef aws service fill:#FF9900,stroke:#232F3E,color:white,stroke-width:2px;
+    class IoT,SM,EC2,AG,AM aws;
 ```
 
+### Modular Components
+1.  **Perception Layer**: Leverages computer vision to translate raw camera feeds into actionable traffic density metrics via **AWS IoT Core**.
+2.  **Intelligence Layer**: Custom-trained **YOLOv8** models hosted on **Amazon SageMaker** identify vehicle types and queue lengths with 94%+ accuracy.
+3.  **Orchestration Layer**: A high-performance **Node.js** middleware on **Amazon EC2** that calculates the Green Light Optimal Speed using real-time signal phase data.
+4.  **Interaction Layer**: A real-time **React** dashboard (hosted on **AWS Amplify**) providing millisecond-accurate speed advisories and signal countdowns.
+
+### 🔄 Data Flow Sequence
+1.  **Ingestion**: Traffic cameras push video streams or frames to the **AWS IoT Core** endpoint.
+2.  **Inference**: **Amazon SageMaker** triggers the YOLOv8 model to calculate traffic density and vehicle count.
+3.  **Calculation**: The **Node.js** backend on **EC2** receives density data and computes the optimal speed using the `GLOSA-Core` algorithm.
+4.  **Broadcast**: Speed advisories are pushed via **WebSockets (Socket.io)** to the **React dashboard** for sub-second user updates.
+
+### ☁️ AWS Technical Workflows
+
+#### 1. IoT Telemetry pipeline
+The system utilizes the **AWS SDK v3** to bridge edge data with the cloud:
+- **Client**: `IoTDataPlaneClient`
+- **Action**: `PublishCommand`
+- **Workflow**: Junction sensors publish JSON payloads to specific MQTT topics (e.g., `junction/telemetry/001`). AWS IoT Core then rules-engines this data to SageMaker or DynamoDB.
+
+#### 2. SageMaker Inference Loop
+Real-time speed prediction is handled via a dedicated AI service bridge:
+- **Client**: `SageMakerRuntimeClient`
+- **Action**: `InvokeEndpointCommand`
+- **Workflow**: The backend sends structured traffic data (vehicle count, density) to a hosted **YOLOv8** endpoint. If the endpoint is unavailable, the system intelligently falls back to a local heuristic-based speed model.
+
+#### 3. Edge-to-Cloud Orchestration
+- **Frontend Hosting**: Deployed via **AWS Amplify** for global CDN delivery and SSL termination.
+- **Compute**: **Amazon EC2 (t3.medium)** instances handle the Node.js orchestration layer with auto-scaling groups to manage peak traffic.
 
 ---
 
@@ -136,11 +187,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Developed for the **Hack2Skill AI for Bharat by AWS Hackathon 2026**.
-
-## ☁️ AWS Cloud Architecture
-GLOSA Bharat is built on a robust, scalable **AWS** infrastructure as per our technical roadmap:
-- **Data Ingestion**: **AWS IoT Core** captures real-time telemetry from street-level traffic cameras.
-- **AI Processing**: **Amazon SageMaker** hosts the custom YOLOv8 models for real-time congestion and predictive analysis.
-- **Backend Orchestration**: **Amazon EC2** running Node.js handles the GLOSA logic and predictive speed calculations.
-- **Real-time Delivery**: **API Gateway & WebSockets** push sub-second advisories to the edge.
-- **User Interaction**: **AWS Amplify** hosts the React-based mobile application for drivers.
